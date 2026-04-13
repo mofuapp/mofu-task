@@ -196,6 +196,7 @@ body{display:flex;flex-direction:column}
   <div class="tl-header">
     <div class="tl-date-row">
       <span class="tl-year" id="tl-year"></span>
+      <span class="tl-date-arrow" onclick="moveWeek(-1)">‹</span>
       <span class="tl-date-main" id="tl-date-main"></span>
       <span class="tl-date-arrow" onclick="moveWeek(1)">›</span>
     </div>
@@ -322,6 +323,20 @@ body{display:flex;flex-direction:column}
         <label>日付</label>
         <input type="date" id="m-task-date">
       </div>
+      <div class="modal-field" id="m-task-repeat-field">
+        <label>繰り返し</label>
+        <select id="m-task-repeat">
+          <option value="">なし</option>
+          <option value="daily">毎日</option>
+          <option value="weekdays">平日のみ</option>
+          <option value="weekly">毎週</option>
+          <option value="monthly">毎月</option>
+        </select>
+      </div>
+      <div class="modal-field" id="m-task-repeat-until-field" style="display:none">
+        <label>繰り返し終了日</label>
+        <input type="date" id="m-task-repeat-until">
+      </div>
     </div>
     <div id="m-event-fields" style="display:none">
       <div class="toggle-row">
@@ -337,6 +352,20 @@ body{display:flex;flex-direction:column}
       <div class="modal-field">
         <label>日付</label>
         <input type="date" id="m-event-date">
+      </div>
+      <div class="modal-field" id="m-event-repeat-field">
+        <label>繰り返し</label>
+        <select id="m-event-repeat">
+          <option value="">なし</option>
+          <option value="daily">毎日</option>
+          <option value="weekdays">平日のみ</option>
+          <option value="weekly">毎週</option>
+          <option value="monthly">毎月</option>
+        </select>
+      </div>
+      <div class="modal-field" id="m-event-repeat-until-field" style="display:none">
+        <label>繰り返し終了日</label>
+        <input type="date" id="m-event-repeat-until">
       </div>
     </div>
     <div id="m-later-fields" style="display:none"></div>
@@ -758,6 +787,37 @@ function calTapDay(ds) {
 function toggleAllDay() {
   document.getElementById('m-time-fields').style.display = document.getElementById('m-allday').checked ? 'none' : '';
 }
+function onRepeatChange(prefix) {
+  const val = document.getElementById(prefix+'-repeat').value;
+  document.getElementById(prefix+'-repeat-until-field').style.display = val ? '' : 'none';
+}
+document.addEventListener('change', function(e) {
+  if (e.target.id === 'm-task-repeat') onRepeatChange('m-task');
+  if (e.target.id === 'm-event-repeat') onRepeatChange('m-event');
+});
+
+function generateRepeatDates(startDs, repeat, untilDs) {
+  if (!repeat || !untilDs) return [];
+  const dates = [];
+  const start = parseDate(startDs);
+  const end = parseDate(untilDs);
+  const cur = new Date(start);
+  cur.setDate(cur.getDate() + 1);
+  while (cur <= end) {
+    const dow = cur.getDay();
+    if (repeat === 'daily') {
+      dates.push(dateStr(cur));
+    } else if (repeat === 'weekdays') {
+      if (dow >= 1 && dow <= 5) dates.push(dateStr(cur));
+    } else if (repeat === 'weekly') {
+      if (dow === start.getDay()) dates.push(dateStr(cur));
+    } else if (repeat === 'monthly') {
+      if (cur.getDate() === start.getDate()) dates.push(dateStr(cur));
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
 
 function openAddModal() {
   state.editId=null;
@@ -771,6 +831,14 @@ function openAddModal() {
   document.getElementById('m-event-date').value=dateStr(state.selectedDate);
   document.getElementById('m-allday').checked=false;
   document.getElementById('m-time-fields').style.display='';
+  document.getElementById('m-task-repeat').value='';
+  document.getElementById('m-task-repeat-until').value='';
+  document.getElementById('m-task-repeat-until-field').style.display='none';
+  document.getElementById('m-task-repeat-field').style.display='';
+  document.getElementById('m-event-repeat').value='';
+  document.getElementById('m-event-repeat-until').value='';
+  document.getElementById('m-event-repeat-until-field').style.display='none';
+  document.getElementById('m-event-repeat-field').style.display='';
   document.getElementById('m-edit-id').value='';
   const currentScreen = document.querySelector('.screen.active');
   const isLater = currentScreen && currentScreen.id === 'screen-later';
@@ -788,6 +856,10 @@ function editTask(id) {
   document.getElementById('modal-save').textContent='保存する';
   document.getElementById('modal-delete').style.display='block';
   document.querySelector('.modal-tabs').style.display='';
+  document.getElementById('m-task-repeat-field').style.display='none';
+  document.getElementById('m-task-repeat-until-field').style.display='none';
+  document.getElementById('m-event-repeat-field').style.display='none';
+  document.getElementById('m-event-repeat-until-field').style.display='none';
   document.getElementById('m-name').value=t.name;
   document.getElementById('m-edit-id').value=id;
   setModalType(t.type);
@@ -843,16 +915,28 @@ function saveTask() {
     }
   } else {
     const item={id:uid(),name,type,done:false};
+    let repeatType = '', repeatUntil = '';
     if (type==='task') {
       item.date=document.getElementById('m-task-date').value;
+      repeatType = document.getElementById('m-task-repeat').value;
+      repeatUntil = document.getElementById('m-task-repeat-until').value;
     } else if (type==='event') {
       item.allDay=document.getElementById('m-allday').checked;
       item.start=item.allDay?'':document.getElementById('m-start').value;
       item.end=item.allDay?'':document.getElementById('m-end').value;
       item.date=document.getElementById('m-event-date').value;
-    } else {
+      repeatType = document.getElementById('m-event-repeat').value;
+      repeatUntil = document.getElementById('m-event-repeat-until').value;
     }
     state.tasks.push(item);
+    if (repeatType && repeatUntil && item.date) {
+      const extraDates = generateRepeatDates(item.date, repeatType, repeatUntil);
+      extraDates.forEach(d => {
+        const copy = Object.assign({}, item, { id: uid(), date: d, done: false });
+        delete copy.doneAt;
+        state.tasks.push(copy);
+      });
+    }
   }
   save();
   document.getElementById('modal-overlay').classList.remove('show');
