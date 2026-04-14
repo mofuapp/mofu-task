@@ -325,7 +325,7 @@ body{display:flex;flex-direction:column}
       </div>
       <div class="modal-field" id="m-task-repeat-field">
         <label>繰り返し</label>
-        <select id="m-task-repeat">
+        <select id="m-task-repeat" onchange="onRepeatChange('m-task')">
           <option value="">なし</option>
           <option value="daily">毎日</option>
           <option value="weekdays">平日のみ</option>
@@ -355,7 +355,7 @@ body{display:flex;flex-direction:column}
       </div>
       <div class="modal-field" id="m-event-repeat-field">
         <label>繰り返し</label>
-        <select id="m-event-repeat">
+        <select id="m-event-repeat" onchange="onRepeatChange('m-event')">
           <option value="">なし</option>
           <option value="daily">毎日</option>
           <option value="weekdays">平日のみ</option>
@@ -789,12 +789,18 @@ function toggleAllDay() {
 }
 function onRepeatChange(prefix) {
   const val = document.getElementById(prefix+'-repeat').value;
-  document.getElementById(prefix+'-repeat-until-field').style.display = val ? '' : 'none';
+  const untilField = document.getElementById(prefix+'-repeat-until-field');
+  const untilInput = document.getElementById(prefix+'-repeat-until');
+  untilField.style.display = val ? '' : 'none';
+  if (val && !untilInput.value) {
+    const dateInput = document.getElementById(prefix === 'm-task' ? 'm-task-date' : 'm-event-date');
+    if (dateInput.value) {
+      const d = parseDate(dateInput.value);
+      d.setMonth(d.getMonth() + 1);
+      untilInput.value = dateStr(d);
+    }
+  }
 }
-document.addEventListener('change', function(e) {
-  if (e.target.id === 'm-task-repeat') onRepeatChange('m-task');
-  if (e.target.id === 'm-event-repeat') onRepeatChange('m-event');
-});
 
 function generateRepeatDates(startDs, repeat, untilDs) {
   if (!repeat || !untilDs) return [];
@@ -929,7 +935,12 @@ function saveTask() {
       repeatUntil = document.getElementById('m-event-repeat-until').value;
     }
     state.tasks.push(item);
-    if (repeatType && repeatUntil && item.date) {
+    if (repeatType && item.date) {
+      if (!repeatUntil) {
+        const d = parseDate(item.date);
+        d.setMonth(d.getMonth() + 1);
+        repeatUntil = dateStr(d);
+      }
       const extraDates = generateRepeatDates(item.date, repeatType, repeatUntil);
       extraDates.forEach(d => {
         const copy = Object.assign({}, item, { id: uid(), date: d, done: false });
