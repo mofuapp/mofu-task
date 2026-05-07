@@ -956,8 +956,21 @@ function saveTask() {
 
 function deleteTask() {
   if (!state.editId) return;
-  if (!confirm('削除しますか？')) return;
-  state.tasks=state.tasks.filter(t=>t.id!==state.editId);
+  const target = state.tasks.find(t => t.id === state.editId);
+  if (!target) return;
+  const sameGroup = state.tasks.filter(t => t.id !== target.id && t.name === target.name && t.type === target.type);
+  if (sameGroup.length > 0) {
+    const choice = prompt(`同じ名前の予定が他に${sameGroup.length}件あります。\n\n1: これだけ削除\n2: すべて削除（${sameGroup.length + 1}件）\n\n番号を入力してください`, '1');
+    if (!choice) return;
+    if (choice.trim() === '2') {
+      state.tasks = state.tasks.filter(t => !(t.name === target.name && t.type === target.type));
+    } else {
+      state.tasks = state.tasks.filter(t => t.id !== state.editId);
+    }
+  } else {
+    if (!confirm('削除しますか？')) return;
+    state.tasks = state.tasks.filter(t => t.id !== state.editId);
+  }
   save();
   document.getElementById('modal-overlay').classList.remove('show');
   renderTimeline(); renderLater();
