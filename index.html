@@ -370,7 +370,8 @@ body{display:flex;flex-direction:column}
     </div>
     <div id="m-later-fields" style="display:none"></div>
     <button class="modal-btn" id="modal-save" onclick="saveTask()">追加する</button>
-    <button class="delete-btn" id="modal-delete" style="display:none" onclick="deleteTask()">このタスクを削除</button>
+    <button class="delete-btn" id="modal-delete" style="display:none" onclick="deleteTask(false)">このタスクを削除</button>
+    <button class="delete-btn" id="modal-delete-all" style="display:none" onclick="deleteTask(true)"></button>
     <input type="hidden" id="m-edit-id">
   </div>
 </div>
@@ -861,6 +862,14 @@ function editTask(id) {
   document.getElementById('modal-title').textContent='編集';
   document.getElementById('modal-save').textContent='保存する';
   document.getElementById('modal-delete').style.display='block';
+  const sameCount = state.tasks.filter(x => x.id !== id && x.name === t.name && x.type === t.type).length;
+  const delAllBtn = document.getElementById('modal-delete-all');
+  if (sameCount > 0) {
+    delAllBtn.style.display = 'block';
+    delAllBtn.textContent = `同じ名前をすべて削除（${sameCount + 1}件）`;
+  } else {
+    delAllBtn.style.display = 'none';
+  }
   document.querySelector('.modal-tabs').style.display='';
   document.getElementById('m-task-repeat-field').style.display='none';
   document.getElementById('m-task-repeat-until-field').style.display='none';
@@ -954,19 +963,13 @@ function saveTask() {
   renderTimeline(); renderLater();
 }
 
-function deleteTask() {
+function deleteTask(all) {
   if (!state.editId) return;
   const target = state.tasks.find(t => t.id === state.editId);
   if (!target) return;
-  const sameGroup = state.tasks.filter(t => t.id !== target.id && t.name === target.name && t.type === target.type);
-  if (sameGroup.length > 0) {
-    const choice = prompt(`同じ名前の予定が他に${sameGroup.length}件あります。\n\n1: これだけ削除\n2: すべて削除（${sameGroup.length + 1}件）\n\n番号を入力してください`, '1');
-    if (!choice) return;
-    if (choice.trim() === '2') {
-      state.tasks = state.tasks.filter(t => !(t.name === target.name && t.type === target.type));
-    } else {
-      state.tasks = state.tasks.filter(t => t.id !== state.editId);
-    }
+  if (all) {
+    if (!confirm(`「${target.name}」をすべて削除しますか？`)) return;
+    state.tasks = state.tasks.filter(t => !(t.name === target.name && t.type === target.type));
   } else {
     if (!confirm('削除しますか？')) return;
     state.tasks = state.tasks.filter(t => t.id !== state.editId);
