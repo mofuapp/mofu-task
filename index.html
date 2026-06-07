@@ -65,6 +65,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .task-text{font-size:15px;font-weight:600;line-height:1.4;word-break:break-word}
 .task-text.done{text-decoration:line-through;color:var(--text-sub);font-weight:500}
 .carry-from{font-size:11px;color:var(--carry);margin-top:2px;font-weight:600}
+.item-del{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-sub);font-size:20px;line-height:1;opacity:.5;margin-top:-1px}
+.item-del:active{background:#f0f0f0;opacity:1}
 .task-add-wrap{background:#F0F0F0;border-radius:var(--radius);padding:14px 16px;margin-top:8px}
 .task-add-wrap input{width:100%;border:none;background:transparent;font-size:15px;color:var(--purple);outline:none}
 .task-add-wrap input::placeholder{color:var(--text-sub)}
@@ -421,7 +423,7 @@ function renderTodo() {
   if (state.deletedTasks.length) {
     document.getElementById('btn-restore').addEventListener('click', openRestoreModal);
   }
-  bindTaskChecks(el);
+  bindTaskActions(el);
 }
 
 function taskRowHtml(t, isCarry, forceDone) {
@@ -434,12 +436,16 @@ function taskRowHtml(t, isCarry, forceDone) {
         <div class="task-text${done?' done':''}">${esc(t.text)}</div>
         ${fromLabel ? `<div class="carry-from">${fromLabel}</div>` : ''}
       </div>
+      <button type="button" class="item-del" data-action="delete" data-id="${esc(t.id)}" aria-label="削除">×</button>
     </div>`;
 }
 
-function bindTaskChecks(root) {
+function bindTaskActions(root) {
   root.querySelectorAll('[data-action="toggle"]').forEach(btn => {
     btn.addEventListener('click', () => toggleTask(btn.dataset.id));
+  });
+  root.querySelectorAll('[data-action="delete"]').forEach(btn => {
+    btn.addEventListener('click', () => removeTask(btn.dataset.id));
   });
 }
 
@@ -461,13 +467,12 @@ function toggleTask(id) {
   renderTodo();
 }
 
-function deleteTask(id) {
+function removeTask(id) {
   const t = state.tasks.find(x => x.id === id);
   if (!t) return;
   state.deletedTasks.unshift({ ...t, deletedAt: todayStr() });
   state.tasks = state.tasks.filter(x => x.id !== id);
   save();
-  closeModal();
   renderTodo();
 }
 
@@ -611,6 +616,7 @@ function renderChecklist() {
         <div class="cl-item" data-id="${esc(item.id)}">
           <button type="button" class="cl-check${item.done?' done':''}" data-action="cl-toggle" data-id="${esc(item.id)}"></button>
           <span class="cl-text${item.done?' done':''}">${esc(item.text)}</span>
+          <button type="button" class="item-del" data-action="cl-delete" data-id="${esc(item.id)}" aria-label="削除">×</button>
         </div>`).join('')}
       <div class="cl-add-wrap">
         <input type="text" id="cl-input" placeholder="項目を追加" autocomplete="off">
@@ -622,6 +628,9 @@ function renderChecklist() {
   });
   el.querySelectorAll('[data-action="cl-toggle"]').forEach(btn => {
     btn.addEventListener('click', () => toggleChecklistItem(btn.dataset.id));
+  });
+  el.querySelectorAll('[data-action="cl-delete"]').forEach(btn => {
+    btn.addEventListener('click', () => removeChecklistItem(btn.dataset.id));
   });
   document.getElementById('btn-list-picker').addEventListener('click', openListPickerModal);
   document.getElementById('btn-edit-list').addEventListener('click', () => openListEditModal(list.id));
@@ -646,6 +655,14 @@ function toggleChecklistItem(id) {
   if (!list) return;
   const item = list.items.find(i => i.id === id);
   if (item) item.done = !item.done;
+  save();
+  renderChecklist();
+}
+
+function removeChecklistItem(id) {
+  const list = state.lists.find(l => l.id === state.selectedListId);
+  if (!list) return;
+  list.items = list.items.filter(i => i.id !== id);
   save();
   renderChecklist();
 }

@@ -1,4 +1,4 @@
-const CACHE = 'mofu-todo-v3';
+const CACHE = 'mofu-todo-v4';
 const ASSETS = ['./index.html'];
 
 self.addEventListener('install', e => {
