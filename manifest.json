@@ -1,6 +1,6 @@
 {
-  "name": "mofu task",
-  "short_name": "mofu task",
+  "name": "mofu todo",
+  "short_name": "mofu todo",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
